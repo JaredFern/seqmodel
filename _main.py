@@ -60,7 +60,8 @@ def _main(opt, model_class, model_opt, data_fn, run_fn, logger, train_opt=None,
     if is_init_only:
         return
 
-    sess_config = tf.ConfigProto() if opt['gpu'] else tf.ConfigProto(device_count={'GPU': 0})  # noqa
+    # sess_config = tf.ConfigProto() if opt['gpu'] else tf.ConfigProto(device_count={'GPU': 0})  # noqa
+    sess_config = sq.run.get_tfsession_config(opt['gpu'], num_threads=12)
 
     with tf.Session(config=sess_config) as sess:
         sess.run(tf.global_variables_initializer())

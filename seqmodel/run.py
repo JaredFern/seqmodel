@@ -231,6 +231,13 @@ def describe_variables(variables):
     var_desc.append(f'Total parameters: {total_params:5E}')
     return '\n'.join(var_desc)
 
-
-def get_tfsession_config(is_gpu):
-    return tf.ConfigProto() if is_gpu else tf.ConfigProto(device_count={'GPU': 0})
+def get_tfsession_config(is_gpu, num_threads=8):
+    if is_gpu:
+        return tf.ConfigProto(
+            intra_op_parallelism_threads=num_threads,
+            inter_op_parallelism_threads=num_threads)
+    else:
+        return tf.ConfigProto(
+            device_count={'GPU': 0},
+            intra_op_parallelism_threads=num_threads,
+            inter_op_parallelism_threads=num_threads)

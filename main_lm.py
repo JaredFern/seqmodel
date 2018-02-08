@@ -18,6 +18,7 @@ if __name__ == '__main__':
     parser = sq.get_common_argparser('main_lm.py')
     parser.add_argument('--seq_len', type=int, default=20, help=' ')
     parser.add_argument('--sentence_level', action='store_true', help=' ')
+    parser.add_argument('--training_weights', type=bool, default=False, help=' ')
     sq.add_arg_group_defaults(parser, group_default)
     opt, groups = sq.parse_set_args(parser, group_default)
     logger, all_opt = sq.init_exp_opts(opt, groups, group_default)
@@ -27,10 +28,12 @@ if __name__ == '__main__':
         dpath = partial(os.path.join, opt['data_dir'])
         vocab = sq.Vocabulary.from_vocab_file(dpath('vocab.txt'))
         data_fn = partial(sq.read_seq_data, in_vocab=vocab, out_vocab=vocab,
-                          keep_sentence=opt['sentence_level'], seq_len=opt['seq_len'])
-        data = [data_fn(sq.read_lines(dpath(f), token_split=' '))
-                for f in (opt['train_file'], opt['valid_file'], opt['eval_file'])]
+                          keep_sentence=opt['sentence_level'], seq_len=opt['seq_len'], tr_weights=opt['training_weights'])
 
+        data = ([data_fn(sq.read_lines(dpath(f[0]), token_split=' ', train=f[1],
+                            weights=opt['training_weights']))
+                            for f in ((opt['train_file'], True),
+                                  (opt['valid_file'],False), (opt['eval_file'], False))])
         batch_iter = partial(sq.seq_batch_iter, batch_size=opt['batch_size'],
                              shuffle=opt['sentence_level'],
                              keep_sentence=opt['sentence_level'])
@@ -80,18 +83,18 @@ if __name__ == '__main__':
         #     decode(opt, model_opt, decode_opt, decode_batch, logger,
         #            data_fn, sq.SeqModel)
     else:
-        # vocab = sq.Vocabulary.from_vocab_file(os.path.join(
-        #   opt['data_dir'], 'vocab.txt'))
-        # with open('tmp.txt', mode='w') as ofp:
-        #     def collect_fn(batch, collect):
-        #         labels = vocab.i2w(batch.labels.label[:, 0])
-        #         nlls = collect[0][:, 0]
-        #         for label, nll in zip(labels, nlls):
-        #             ofp.write(f'{label}\t{nll}\n')
+        vocab = sq.Vocabulary.from_vocab_file(os.path.join(
+          opt['data_dir'], 'vocab.txt'))
+        with open('tmp.txt', mode='w') as ofp:
+            def collect_fn(batch, collect):
+                labels = vocab.i2w(batch.labels.label[:, 0])
+                nlls = collect[0][:, 0]
+                for label, nll in zip(labels, nlls):
+                    ofp.write(f'{label}\t{nll}\n')
 
-        #     eval_run_fn = partial(sq.run_collecting_epoch, collect_keys=['nll'],
-        #                           collect_fn=collect_fn)
-        #     mle(opt, model_opt, train_opt, logger, data_fn, sq.SeqModel,
-        #         eval_run_fn=eval_run_fn)
-        mle(opt, model_opt, train_opt, logger, data_fn, sq.SeqModel)
+            eval_run_fn = partial(sq.run_collecting_epoch, collect_keys=['nll'],
+                                  collect_fn=collect_fn)
+            mle(opt, model_opt, train_opt, logger, data_fn, sq.SeqModel,
+                eval_run_fn=eval_run_fn)
+    #    mle(opt, model_opt, train_opt, logger, data_fn, sq.SeqModel)
     logger.info(f'Total time: {sq.time_span_str(time.time() - start_time)}')

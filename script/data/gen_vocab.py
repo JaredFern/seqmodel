@@ -27,7 +27,7 @@ def write_vocab(path, vocab, opt):
 
 
 def collect_vocab_from_file(vocabs, filepath, is_parallel=False,
-                            part_indices=(0, -1), char_level=False):
+                            part_indices=(0, -1), char_level=True):
     with codecs.open(filepath, 'r', 'utf-8') as ifp:
         for line in ifp:
             if is_parallel:
@@ -47,7 +47,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('text_dir')
 parser.add_argument('--vocab_filename', type=str, default='vocab.txt')
 parser.add_argument('--text_filenames', type=str,
-                    default='train.txt,valid.txt,test.txt')
+                    default='train.txt,valid.txt,test.txt,train_ext.txt,voc_txt.txt')
 parser.add_argument('--parallel_text', action='store_true')
 parser.add_argument('--part_indices', type=str, default='0,-1')
 parser.add_argument('--char_level', action='store_true')

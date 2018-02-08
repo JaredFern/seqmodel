@@ -9,7 +9,6 @@ from collections import Counter
 
 import kenlm
 import numpy as np
-# from nltk.util import ngrams as make_ngrams
 
 from seqmodel import dstruct as ds
 from seqmodel import util
@@ -45,8 +44,7 @@ def open_files(filepaths, open_fn=open, mode='r', encoding=None):
     for fd in fds:
         fd.close()
 
-
-def read_lines(filepaths, token_split=None, part_split=None, part_indices=None):
+def read_lines(filepaths, token_split=None, weights=None, part_split=None, part_indices=None, train=False):
     """read lines from files, split into parts and select parts, split into tokens"""
     def maybe_split(line, split):
         if split is not None:
@@ -62,21 +60,31 @@ def read_lines(filepaths, token_split=None, part_split=None, part_indices=None):
             line = [item for line_ in line for item in line_]  # flatten list of list
             if part_indices is not None:
                 line = [line[i] for i in part_indices]
-            yield [maybe_split(line_, token_split) for line_ in line]
+            if train:
+                res = [maybe_split(line_, token_split) for line_ in line]
+                if weights:
+                    yield [res[0][1:], res[0][0]]
+                else: yield [res[0][1:], [1]]
+            else:
+                yield [maybe_split(line_, token_split) for line_ in line]
 
-
-def read_seq_data(tokenized_lines, in_vocab, out_vocab, keep_sentence=True, seq_len=20):
+def read_seq_data(tokenized_lines, in_vocab, out_vocab, tr_weights=False, keep_sentence=True, seq_len=20):
     """read data in format of [[['tk1_seq1', 'tk2_seq1']], [['tk1_seq2', 'tk2_seq2']]].
     Add start sequence and end sequence symbol.
     If keep_sentence is False, chunk sequence in length of seq_len (except last one)"""
     # sos_sym = ds.Vocabulary.special_symbols['start_seq']
     sos_sym = ds.Vocabulary.special_symbols['end_seq']
     eos_sym = ds.Vocabulary.special_symbols['end_seq']
-    in_data, out_data = [], []
+    in_data, out_data, weights = [], [], []
+    # line[0] -> tokens (first part of the tab)
+    # line[1] -> weight
+    # [ [w1, w2, w3], [weight] ]
     for line in tokenized_lines:
         if len(line[0][0]) == 0:  # empty line
             line = [eos_sym]
         else:
+            if tr_weights and len(line) > 1:
+                weights.append(line[1])
             line = line[0] + [eos_sym]  # assume many parts, but only take first
         if keep_sentence:
             line.insert(0, sos_sym)
@@ -95,7 +103,7 @@ def read_seq_data(tokenized_lines, in_vocab, out_vocab, keep_sentence=True, seq_
             chunk_in_data.append(in_data[i: i + seq_len])
             chunk_out_data.append(out_data[i: i + seq_len])
         in_data, out_data = chunk_in_data, chunk_out_data
-    return in_data, out_data
+    return in_data, out_data, weights
 
 
 def read_seq2seq_data(tokenized_lines, in_vocab, out_vocab):
@@ -275,19 +283,22 @@ def concat_word2def_batch(batch1, batch2):
     return ds.BatchTuple(f, l, _n1 + _n2, False)
 
 
-def seq_batch_iter(in_data, out_data, batch_size=1, shuffle=True, keep_sentence=True):
+def seq_batch_iter(in_data, out_data, weights, batch_size=1, shuffle=True, keep_sentence=True):
     """wrapper of batch_iter to format seq data"""
     keep_state = not keep_sentence
-    for x, y in batch_iter(batch_size, shuffle, in_data, out_data, pad=[[], []]):
+    # add one more argumennt and pass it to "batch_iter" below
+    # also add 0 for the padding
+    for x, y, w in batch_iter(batch_size, shuffle, in_data, out_data, weights, pad=[[], [], 0]):
         x_arr, x_len = util.hstack_list(x)
         y_arr, y_len = util.hstack_list(y)
-        seq_weight = np.where(y_len > 0, 1, 0).astype(np.float32)
+        # change seq_weight to be the input weight
+
+        seq_weight = np.where(y_len > 0, np.float(w), 0).astype(np.float32)
         token_weight, num_tokens = util.masked_full_like(
-            y_arr, 1, num_non_padding=y_len)
+            y_arr, seq_weight, num_non_padding=y_len)
         features = ds.SeqFeatureTuple(x_arr, x_len)
         labels = ds.SeqLabelTuple(y_arr, token_weight, seq_weight)
         yield ds.BatchTuple(features, labels, num_tokens, keep_state)
-
 
 def seq2seq_batch_iter(enc_data, dec_data, batch_size=1, shuffle=True):
     """wrapper of batch_iter to format seq2seq data"""
