@@ -38,7 +38,7 @@ if __name__ == '__main__':
                              shuffle=opt['sentence_level'],
                              keep_sentence=opt['sentence_level'])
         return data, batch_iter, (vocab, vocab)
-
+        
     if opt['command'] == 'decode':
         if opt['sentence_level']:
             logger.warn('sentence_level is not supported.')
