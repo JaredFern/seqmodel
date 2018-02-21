@@ -63,8 +63,8 @@ def read_lines(filepaths, token_split=None, weights=None, part_split=None, part_
             if train:
                 res = [maybe_split(line_, token_split) for line_ in line]
                 if weights:
-                    yield [res[0][1:], res[0][0]]
-                else: yield [res[0][1:], [1]]
+                    yield [res[0][1:], float(res[0][0])]
+                else: yield [res[0][1:], 1]
             else:
                 yield [maybe_split(line_, token_split) for line_ in line]
 
@@ -80,6 +80,7 @@ def read_seq_data(tokenized_lines, in_vocab, out_vocab, tr_weights=False, keep_s
     # line[1] -> weight
     # [ [w1, w2, w3], [weight] ]
     for line in tokenized_lines:
+        # import pdb; pdb.set_trace()
         if len(line[0][0]) == 0:  # empty line
             line = [eos_sym]
         else:
@@ -288,18 +289,30 @@ def seq_batch_iter(in_data, out_data, weights, batch_size=1, shuffle=True, keep_
     keep_state = not keep_sentence
     # add one more argumennt and pass it to "batch_iter" below
     # also add 0 for the padding
-    for x, y, w in batch_iter(batch_size, shuffle, in_data, out_data, weights, pad=[[], [], 0]):
-        x_arr, x_len = util.hstack_list(x)
-        y_arr, y_len = util.hstack_list(y)
-        # change seq_weight to be the input weight
-
-        seq_weight = np.where(y_len > 0, np.float(w), 0).astype(np.float32)
-        token_weight, num_tokens = util.masked_full_like(
-            y_arr, seq_weight, num_non_padding=y_len)
-        features = ds.SeqFeatureTuple(x_arr, x_len)
-        labels = ds.SeqLabelTuple(y_arr, token_weight, seq_weight)
-        yield ds.BatchTuple(features, labels, num_tokens, keep_state)
-
+    if weights:
+        # import pdb; pdb.set_trace()
+        for x, y, w in batch_iter(batch_size, shuffle, in_data, out_data, weights, pad=[[], [], 0]):
+            x_arr, x_len = util.hstack_list(x)
+            y_arr, y_len = util.hstack_list(y)
+            # w_arr, w_len = util.hstack_list(w)
+            # change seq_weight to be the input weight
+            seq_weight = np.where(y_len > 0, w, 0).astype(np.float32)
+            # import pdb; pdb.set_trace()
+            token_weight, num_tokens = util.masked_full_like(
+                y_arr, w, num_non_padding=y_len)
+            features = ds.SeqFeatureTuple(x_arr, x_len)
+            labels = ds.SeqLabelTuple(y_arr, token_weight, seq_weight)
+            yield ds.BatchTuple(features, labels, num_tokens, keep_state)
+    else:
+        for x, y in batch_iter(batch_size, shuffle, in_data, out_data, pad=[[], []]):
+            x_arr, x_len = util.hstack_list(x)
+            y_arr, y_len = util.hstack_list(y)
+            seq_weight = np.where(y_len > 0, 1, 0).astype(np.float32)
+            token_weight, num_tokens = util.masked_full_like(
+                y_arr, 1, num_non_padding=y_len)
+            features = ds.SeqFeatureTuple(x_arr, x_len)
+            labels = ds.SeqLabelTuple(y_arr, token_weight, seq_weight)
+            yield ds.BatchTuple(features, labels, num_tokens, keep_state)
 def seq2seq_batch_iter(enc_data, dec_data, batch_size=1, shuffle=True):
     """wrapper of batch_iter to format seq2seq data"""
     for x, y in batch_iter(batch_size, shuffle, enc_data, dec_data, pad=[[], []]):

@@ -231,7 +231,7 @@ def describe_variables(variables):
     var_desc.append(f'Total parameters: {total_params:5E}')
     return '\n'.join(var_desc)
 
-def get_tfsession_config(is_gpu, num_threads=8):
+def get_tfsession_config(is_gpu, num_threads=12):
     if is_gpu:
         return tf.ConfigProto(
             intra_op_parallelism_threads=num_threads,
