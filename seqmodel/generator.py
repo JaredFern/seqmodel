@@ -80,8 +80,7 @@ def read_seq_data(tokenized_lines, in_vocab, out_vocab, tr_weights=False, keep_s
     # line[1] -> weight
     # [ [w1, w2, w3], [weight] ]
     for line in tokenized_lines:
-        # import pdb; pdb.set_trace()
-        if len(line[0][0]) == 0:  # empty line
+        if len(line[0]) == 0:  # empty line
             line = [eos_sym]
         else:
             if tr_weights and len(line) > 1:
