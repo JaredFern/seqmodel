@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from collections import defaultdict
 from collections import Counter
 
-import kenlm
+# import kenlm
 import numpy as np
 
 from seqmodel import dstruct as ds

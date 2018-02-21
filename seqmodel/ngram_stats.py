@@ -9,7 +9,7 @@ from collections import deque
 from functools import partial
 
 import numpy as np
-import kenlm
+# import kenlm
 
 from seqmodel import util as squ
 from seqmodel.ngram_stat import *

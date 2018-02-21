@@ -4,7 +4,7 @@ from itertools import product
 from collections import defaultdict
 import time
 
-import kenlm
+# import kenlm
 import numpy as np
 import tensorflow as tf
 

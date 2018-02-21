@@ -6,7 +6,7 @@ from itertools import product
 from itertools import chain
 from collections import defaultdict
 
-import kenlm
+# import kenlm  
 import numpy as np
 from nltk.probability import FreqDist
 from nltk.probability import ConditionalFreqDist
